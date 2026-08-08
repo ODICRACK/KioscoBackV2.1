@@ -8,9 +8,10 @@ router.use(verificarToken);
 
 // Categorías y Subcategorías
 router.get('/categorias', catalogoController.obtenerCategorias);
-// Solo el Jefe (o roles superiores) deberían crear categorías
 router.post('/categorias', verificarRol(['jefe', 'super']), catalogoController.crearCategoria);
+router.delete('/categorias/:id', verificarRol(['jefe', 'super']), catalogoController.eliminarCategoria);
 router.post('/subcategorias', verificarRol(['jefe', 'super']), catalogoController.crearSubCategoria);
+router.delete('/subcategorias/:id', verificarRol(['jefe', 'super']), catalogoController.eliminarSubCategoria);
 
 // Productos
 router.get('/productos', catalogoController.obtenerProductos);

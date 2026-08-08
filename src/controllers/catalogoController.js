@@ -177,10 +177,51 @@ const eliminarProducto = async (req, res) => {
   }
 };
 
+const eliminarCategoria = async (req, res) => {
+  const { id } = req.params;
+  const { id_negocio } = req.usuario;
+
+  try {
+    const { rows } = await db.query(
+      'UPDATE CATEGORIAS SET eliminado = true WHERE id = $1 AND id_negocio = $2 RETURNING id',
+      [id, id_negocio]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Categoría no encontrada' });
+    }
+
+    res.json({ message: 'Categoría eliminada correctamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al eliminar categoría' });
+  }
+};
+
+const eliminarSubCategoria = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { rows } = await db.query(
+      'UPDATE SUB_CATEGORIAS SET eliminado = true WHERE id = $1 RETURNING id',
+      [id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'Subcategoría no encontrada' });
+    }
+
+    res.json({ message: 'Subcategoría eliminada correctamente' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al eliminar subcategoría' });
+  }
+};
+
 module.exports = {
   obtenerCategorias,
   crearCategoria,
   crearSubCategoria,
+  eliminarCategoria,
+  eliminarSubCategoria,
   obtenerProductos,
   crearProducto,
   editarProducto,
