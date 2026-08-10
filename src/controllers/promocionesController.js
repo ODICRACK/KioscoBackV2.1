@@ -12,6 +12,7 @@ const obtenerPromociones = async (req, res) => {
       SELECT 
         p.id, 
         p.nombre,
+        p.precio,
         COALESCE(
           json_agg(
             json_build_object('id', ps.id_subcategoria, 'nombre', s.nombre)
@@ -37,7 +38,7 @@ const obtenerPromociones = async (req, res) => {
 // CREAR PROMOCIÓN (Transacción)
 // ==========================================
 const crearPromocion = async (req, res) => {
-  const { nombre, subcategorias } = req.body; 
+  const { nombre, precio, subcategorias } = req.body; 
   // "subcategorias" debe ser un array de IDs: [101, 102]
   const { id_negocio } = req.usuario;
 
@@ -53,8 +54,8 @@ const crearPromocion = async (req, res) => {
 
     // 1. Insertamos la cabecera de la promoción
     const promoResult = await client.query(
-      'INSERT INTO PROMOCIONES (id_negocio, nombre) VALUES ($1, $2) RETURNING id',
-      [id_negocio, nombre]
+      'INSERT INTO PROMOCIONES (id_negocio, nombre, precio) VALUES ($1, $2, $3) RETURNING id',
+      [id_negocio, nombre, precio]
     );
     const id_promocion = promoResult.rows[0].id;
 
