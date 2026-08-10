@@ -9,4 +9,7 @@ router.use(verificarToken);
 // Ruta: POST /api/ventas
 router.post('/', ventasController.crearVenta);
 
+// Ruta: PUT /api/ventas/:id
+router.put('/:id', ventasController.editarVenta);
+
 module.exports = router;
