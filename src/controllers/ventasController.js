@@ -91,13 +91,13 @@ const editarVenta = async (req, res) => {
   const productosNuevos = items || productos || [];
   const { id_negocio } = req.usuario;
 
-  const pool = db.getPool();
+  const pool = db.getPool(); // Asegúrate de que db.getPool() exista en tu db.js
   const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
 
-    // 1. Verificar que la venta existe y pertenece al negocio del usuario
+    // 1. Verificar que la venta existe
     const ventaCheck = await client.query(
       'SELECT id FROM VENTAS WHERE id = $1 AND id_negocio = $2',
       [id, id_negocio]
@@ -108,34 +108,51 @@ const editarVenta = async (req, res) => {
       return res.status(404).json({ message: 'Venta no encontrada' });
     }
 
-    // 2. Obtener productos actuales de la venta para restaurar stock de los eliminados
+    // 2. Obtener productos actuales y DEVOLVER TODO EL STOCK
     const actualesResult = await client.query(
       'SELECT id_producto, cantidad FROM VENTA_PRODUCTO WHERE id_venta = $1',
       [id]
     );
     const actuales = actualesResult.rows;
 
-    const idsMantener = productosNuevos.map(p => Number(p.id_producto || p.id));
-
-    // Restaurar stock de los productos que fueron eliminados del ticket
     for (const itemActual of actuales) {
-      if (!idsMantener.includes(Number(itemActual.id_producto))) {
-        await client.query(
-          'UPDATE PRODUCTOS SET stock = stock + $1 WHERE id = $2',
-          [itemActual.cantidad, itemActual.id_producto]
-        );
-      }
+      await client.query(
+        'UPDATE PRODUCTOS SET stock = stock + $1 WHERE id = $2',
+        [itemActual.cantidad, itemActual.id_producto]
+      );
     }
 
-    // 3. Eliminar los items anteriores de la relación VENTA_PRODUCTO
+    // 3. Eliminar los items anteriores
     await client.query('DELETE FROM VENTA_PRODUCTO WHERE id_venta = $1', [id]);
 
-    // 4. Insertar los items conservados o actualizados
+    // 4. Procesar los NUEVOS items (restar stock verificando que alcance y guardar)
     for (const item of productosNuevos) {
       const prodId = item.id_producto || item.id;
       const cant = item.cantidad || 1;
       const monto = item.monto_individual || item.precio || 0;
 
+      // Bloquear fila y verificar stock
+      const stockResult = await client.query(
+        'SELECT stock, nombre FROM PRODUCTOS WHERE id = $1 AND eliminado = false FOR UPDATE',
+        [prodId]
+      );
+
+      if (stockResult.rows.length === 0) {
+        throw new Error(`El producto con ID ${prodId} no existe o fue eliminado.`);
+      }
+
+      const productoDB = stockResult.rows[0];
+      if (productoDB.stock < cant) {
+        throw new Error(`Stock insuficiente para: ${productoDB.nombre}. Stock actual: ${productoDB.stock}`);
+      }
+
+      // Descontar nuevo stock
+      await client.query(
+        'UPDATE PRODUCTOS SET stock = stock - $1 WHERE id = $2',
+        [cant, prodId]
+      );
+
+      // Insertar nuevo detalle
       await client.query(
         `INSERT INTO VENTA_PRODUCTO (id_venta, id_producto, cantidad, monto_individual) 
          VALUES ($1, $2, $3, $4)`,
@@ -143,18 +160,19 @@ const editarVenta = async (req, res) => {
       );
     }
 
-    // Registrar auditoría (nota: para ventas la estructura y detalles varían, guardamos id)
+    // 5. Registrar auditoría
     await registrarAuditoria(id_negocio, req.usuario.id_usuario || req.usuario.id, 'EDICION_VENTA', 'VENTA', id, { 
       items_antiguos: actuales, 
       items_nuevos: productosNuevos 
     }, client);
+    
     await client.query('COMMIT');
     res.json({ message: 'Venta actualizada correctamente' });
 
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error al editar venta:', error);
-    res.status(500).json({ message: 'Error al editar venta' });
+    res.status(500).json({ message: error.message || 'Error al editar venta' });
   } finally {
     client.release();
   }
