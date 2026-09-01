@@ -21,7 +21,7 @@ app.use('/api/catalogo', require('./routes/catalogoRoutes'));
 app.use('/api/ventas', require('./routes/ventasRoutes'));
 app.use('/api/resumen', require('./routes/resumenRoutes'));
 app.use('/api/promociones', require('./routes/promocionesRoutes'));
-app.use("/api/autorias", require("./routes/auditoriaRoutes"))
+app.use("/api/autoria", require("./routes/auditoriaRoutes"))
 
 app.listen(port, () => {
   console.log(`Servidor corriendo en http://localhost:${port}`);
