@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { registrarAuditoria } = require('./auditoriaController');
 
 const crearVenta = async (req, res) => {
   const { productos, pagos, turno } = req.body;
@@ -142,6 +143,11 @@ const editarVenta = async (req, res) => {
       );
     }
 
+    // Registrar auditoría (nota: para ventas la estructura y detalles varían, guardamos id)
+    await registrarAuditoria(id_negocio, req.usuario.id_usuario || req.usuario.id, 'EDICION_VENTA', 'VENTA', id, { 
+      items_antiguos: actuales, 
+      items_nuevos: productosNuevos 
+    }, client);
     await client.query('COMMIT');
     res.json({ message: 'Venta actualizada correctamente' });
 
@@ -195,6 +201,9 @@ const eliminarVenta = async (req, res) => {
     await client.query('DELETE FROM VENTA_PRODUCTO WHERE id_venta = $1', [id]);
     await client.query('DELETE FROM VENTAS WHERE id = $1', [id]);
 
+    await registrarAuditoria(id_negocio, req.usuario.id_usuario || req.usuario.id, 'ELIMINACION_VENTA', 'VENTA', id, {
+      items_eliminados: actuales
+    }, client);
     await client.query('COMMIT');
     res.json({ message: 'Venta eliminada correctamente' });
 
