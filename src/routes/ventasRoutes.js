@@ -12,4 +12,7 @@ router.post('/', ventasController.crearVenta);
 // Ruta: PUT /api/ventas/:id
 router.put('/:id', ventasController.editarVenta);
 
+// Ruta: DELETE /api/ventas/:id
+router.delete('/:id', ventasController.eliminarVenta);
+
 module.exports = router;

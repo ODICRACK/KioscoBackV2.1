@@ -120,8 +120,73 @@ const eliminarPromocion = async (req, res) => {
   }
 };
 
+const editarPromocion = async (req, res) => {
+  const { id } = req.params;
+  const { nombre, precio, subcategorias } = req.body;
+  const { id_negocio } = req.usuario;
+
+  if (!subcategorias || subcategorias.length === 0) {
+    return res.status(400).json({ message: 'La promoción debe tener al menos una subcategoría asignada' });
+  }
+
+  const pool = db.getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const checkPromo = await client.query(
+      'SELECT id FROM PROMOCIONES WHERE id = $1 AND id_negocio = $2 AND eliminado = false',
+      [id, id_negocio]
+    );
+
+    if (checkPromo.rows.length === 0) {
+      throw new Error('Promoción no encontrada');
+    }
+
+    await client.query(
+      'UPDATE PROMOCIONES SET nombre = $1, precio = $2 WHERE id = $3',
+      [nombre, precio, id]
+    );
+
+    await client.query(
+      'DELETE FROM PROMOCION_SUB WHERE id_promocion = $1',
+      [id]
+    );
+
+    for (const id_subcategoria of subcategorias) {
+      const subCheck = await client.query(
+        `SELECT s.id FROM SUB_CATEGORIAS s
+         JOIN CATEGORIAS c ON s.id_categoria = c.id
+         WHERE s.id = $1 AND c.id_negocio = $2 AND s.eliminado = false`,
+        [id_subcategoria, id_negocio]
+      );
+
+      if (subCheck.rows.length === 0) {
+        throw new Error(`La subcategoría con ID ${id_subcategoria} no es válida o no pertenece al negocio.`);
+      }
+
+      await client.query(
+        'INSERT INTO PROMOCION_SUB (id_promocion, id_subcategoria) VALUES ($1, $2)',
+        [id, id_subcategoria]
+      );
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Promoción actualizada con éxito' });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error al editar promoción:', error.message);
+    res.status(400).json({ message: error.message || 'Error interno al procesar la promoción' });
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   obtenerPromociones,
   crearPromocion,
-  eliminarPromocion
+  eliminarPromocion,
+  editarPromocion
 };

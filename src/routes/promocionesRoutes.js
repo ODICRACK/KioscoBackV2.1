@@ -9,8 +9,9 @@ router.use(verificarToken);
 // GET: Todos los empleados pueden ver las promos activas para ofrecerlas en la venta
 router.get('/', promocionesController.obtenerPromociones);
 
-// POST/DELETE: Solo administradores pueden gestionar promos
+// POST/PUT/DELETE: Solo administradores pueden gestionar promos
 router.post('/', verificarRol(['jefe', 'super']), promocionesController.crearPromocion);
+router.put('/:id', verificarRol(['jefe', 'super']), promocionesController.editarPromocion);
 router.delete('/:id', verificarRol(['jefe', 'super']), promocionesController.eliminarPromocion);
 
 module.exports = router;

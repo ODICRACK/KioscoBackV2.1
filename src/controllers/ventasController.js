@@ -154,4 +154,57 @@ const editarVenta = async (req, res) => {
   }
 };
 
-module.exports = { crearVenta, editarVenta };
+const eliminarVenta = async (req, res) => {
+  const { id } = req.params;
+  const { id_negocio } = req.usuario;
+
+  const pool = db.getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Verificar que la venta existe y pertenece al negocio del usuario
+    const ventaCheck = await client.query(
+      'SELECT id FROM VENTAS WHERE id = $1 AND id_negocio = $2',
+      [id, id_negocio]
+    );
+
+    if (ventaCheck.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'Venta no encontrada' });
+    }
+
+    // 2. Obtener productos actuales de la venta para restaurar stock
+    const actualesResult = await client.query(
+      'SELECT id_producto, cantidad FROM VENTA_PRODUCTO WHERE id_venta = $1',
+      [id]
+    );
+    const actuales = actualesResult.rows;
+
+    // Restaurar stock
+    for (const itemActual of actuales) {
+      await client.query(
+        'UPDATE PRODUCTOS SET stock = stock + $1 WHERE id = $2',
+        [itemActual.cantidad, itemActual.id_producto]
+      );
+    }
+
+    // 3. Eliminar dependencias y la venta
+    await client.query('DELETE FROM VENTA_PAGO WHERE id_venta = $1', [id]);
+    await client.query('DELETE FROM VENTA_PRODUCTO WHERE id_venta = $1', [id]);
+    await client.query('DELETE FROM VENTAS WHERE id = $1', [id]);
+
+    await client.query('COMMIT');
+    res.json({ message: 'Venta eliminada correctamente' });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error al eliminar venta:', error);
+    res.status(500).json({ message: 'Error al eliminar venta' });
+  } finally {
+    client.release();
+  }
+};
+
+module.exports = { crearVenta, editarVenta, eliminarVenta };
