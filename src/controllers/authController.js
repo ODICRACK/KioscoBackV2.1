@@ -30,7 +30,8 @@ const login = async (req, res) => {
       id_usuario: user.id,
       id_negocio: user.id_negocio,
       rol: user.rol,
-      turno: user.turno
+      turno: user.turno,
+      nombre: user.nombre
     };
 
     // El token durará 12 horas
