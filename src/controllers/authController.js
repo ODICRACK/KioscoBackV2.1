@@ -20,7 +20,7 @@ const login = async (req, res) => {
 
     // 2. Comparamos la contraseña encriptada
     const passwordValida = await bcrypt.compare(password, user.password);
-    
+
     if (!passwordValida) {
       return res.status(401).json({ message: 'Usuario o contraseña incorrectos' });
     }
@@ -30,8 +30,7 @@ const login = async (req, res) => {
       id_usuario: user.id,
       id_negocio: user.id_negocio,
       rol: user.rol,
-      turno: user.turno,
-      nombre: user.nombre
+      turno: user.turno
     };
 
     // El token durará 12 horas
@@ -45,7 +44,8 @@ const login = async (req, res) => {
         id: user.id,
         usuario: user.usuario,
         rol: user.rol,
-        turno: user.turno
+        turno: user.turno,
+        nombre: user.nombre
       }
     });
 
